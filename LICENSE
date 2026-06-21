@@ -1,3 +1,17 @@
+Modified distribution notice
+
+This repository contains local modifications to Isaac Lab 2.3.2. The original
+Isaac Lab framework remains copyright (c) 2022-2025, The Isaac Lab Project
+Developers and is licensed under the BSD 3-Clause License below.
+
+Additional modifications in this distribution, including reproducibility and
+environment setup scripts, are copyright (c) 2026, SakuraToErii and are
+distributed under the BSD 3-Clause License unless a file states otherwise.
+
+This notice does not grant permission to use the names of NVIDIA, Isaac Lab, or
+the Isaac Lab Project Developers to endorse or promote this modified
+distribution.
+
 Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
 
 All rights reserved.

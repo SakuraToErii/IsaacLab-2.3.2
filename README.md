@@ -112,6 +112,11 @@ community and beyond!
 
 ## License
 
+This repository is a modified distribution of Isaac Lab 2.3.2. Local changes are
+limited to reproducibility-oriented scripts and environment setup patches, and
+this repository should not be interpreted as an official NVIDIA or Isaac Lab
+release.
+
 The Isaac Lab framework is released under [BSD-3 License](LICENSE). The `isaaclab_mimic` extension and its
 corresponding standalone scripts are released under [Apache 2.0](LICENSE-mimic). The license files of its
 dependencies and assets are present in the [`docs/licenses`](docs/licenses) directory.
