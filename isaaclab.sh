@@ -517,55 +517,6 @@ if [ -f "${ISAACLAB_PATH}/_isaac_sim/setup_conda_env.sh" ]; then
 fi
 EOF
 
-    # add dynamic runtime fixes for uv environments on non-standard Linux distributions.
-    # These paths include version/hash components, so resolve them during activation.
-    cat >> "${env_path}/bin/activate" <<'EOF'
-
-_isaaclab_prepend_ld_path () {
-    [ -d "$1" ] || return 0
-    case ":${LD_LIBRARY_PATH:-}:" in
-        *":$1:"*) ;;
-        *) LD_LIBRARY_PATH="$1${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ;;
-    esac
-}
-
-_isaaclab_newest_ext_dir () {
-    find "$_isaaclab_extscache" -maxdepth 2 -type d -path "$_isaaclab_extscache/$1" 2>/dev/null | sort -V | tail -n 1
-}
-
-if [ -d "${ISAAC_PATH:-}/extscache" ]; then
-    _isaaclab_extscache="${ISAAC_PATH}/extscache"
-elif [ -d "${ISAACLAB_PATH}/_isaac_sim/extscache" ]; then
-    _isaaclab_extscache="${ISAACLAB_PATH}/_isaac_sim/extscache"
-elif [ -d "${HOME}/isaacsim/extscache" ]; then
-    _isaaclab_extscache="${HOME}/isaacsim/extscache"
-else
-    _isaaclab_extscache=""
-fi
-
-if [ -n "$_isaaclab_extscache" ]; then
-    for _isaaclab_ext_dir in \
-        "$(_isaaclab_newest_ext_dir "omni.usd.schema.audio-*/lib")" \
-        "$(_isaaclab_newest_ext_dir "omni.usd.libs-*/bin")" \
-        "$(_isaaclab_newest_ext_dir "omni.usd.core-*/bin")"
-    do
-        _isaaclab_prepend_ld_path "$_isaaclab_ext_dir"
-    done
-    export LD_LIBRARY_PATH
-fi
-
-_isaaclab_torch_gomp="$(find "${VIRTUAL_ENV}/lib" -path "*/site-packages/torch/lib/libgomp*.so*" -type f 2>/dev/null | sort -V | tail -n 1)"
-if [ -n "$_isaaclab_torch_gomp" ]; then
-    case ":${LD_PRELOAD:-}:" in
-        *":$_isaaclab_torch_gomp:"*) ;;
-        *) export LD_PRELOAD="$_isaaclab_torch_gomp${LD_PRELOAD:+:$LD_PRELOAD}" ;;
-    esac
-fi
-
-unset -f _isaaclab_prepend_ld_path _isaaclab_newest_ext_dir
-unset _isaaclab_extscache _isaaclab_ext_dir _isaaclab_torch_gomp
-EOF
-
     # add information to the user about alias
     echo -e "[INFO] Added 'isaaclab' alias to uv environment for 'isaaclab.sh' script."
     echo -e "[INFO] Created uv environment named '${env_name}'.\n"
@@ -607,7 +558,7 @@ print_help () {
     echo -e "\t-d, --docs           Build the documentation from source using sphinx."
     echo -e "\t-n, --new            Create a new external project or internal task from template."
     echo -e "\t-c, --conda [NAME]   Create the conda environment for Isaac Lab. Default name is 'env_isaaclab'."
-    echo -e "\t-u, --uv [NAME]      Create the uv environment for Isaac Lab. Default name is 'env_isaaclab'."
+    echo -e "\t-u, --uv [NAME]      Create the uv environment for Isaac Lab. Default name is '.venv'."
     echo -e "\n" >&2
 }
 
@@ -710,8 +661,8 @@ while [[ $# -gt 0 ]]; do
         -u|--uv)
             # use default name if not provided
             if [ -z "$2" ]; then
-                echo "[INFO] Using default uv environment name: env_isaaclab"
-                uv_env_name="env_isaaclab"
+                echo "[INFO] Using default uv environment name: .venv"
+                uv_env_name=".venv"
             else
                 echo "[INFO] Using uv environment name: $2"
                 uv_env_name=$2
