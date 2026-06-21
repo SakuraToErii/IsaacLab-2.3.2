@@ -461,6 +461,25 @@ setup_uv_env() {
         exit 1
     fi
 
+    # choose Python version if none was explicitly provided
+    if [ -z "${python_path}" ]; then
+        if [[ -f "${ISAACLAB_PATH}/_isaac_sim/VERSION" ]] && [[ "$(head -n1 "${ISAACLAB_PATH}/_isaac_sim/VERSION" || true)" == 4.5* ]]; then
+            python_path="3.10"
+            echo "[INFO] Detected Isaac Sim 4.5, using Python ${python_path} for uv environment."
+        elif [[ -d "${ISAACLAB_PATH}/_isaac_sim" ]] || python -m pip list | grep -q 'isaacsim-rl'; then
+            if is_isaacsim_version_4_5; then
+                python_path="3.10"
+                echo "[INFO] Detected Isaac Sim 4.5, using Python ${python_path} for uv environment."
+            else
+                python_path="3.11"
+                echo "[INFO] Isaac Sim >= 5.0 detected, using Python ${python_path} for uv environment."
+            fi
+        else
+            python_path="3.11"
+            echo "[INFO] Isaac Sim version not detected, defaulting to Python ${python_path} for uv environment."
+        fi
+    fi
+
     # check if _isaac_sim symlink exists and isaacsim-rl is not installed via pip
     if [ ! -L "${ISAACLAB_PATH}/_isaac_sim" ] && ! python -m pip list | grep -q 'isaacsim-rl'; then
         echo -e "[WARNING] _isaac_sim symlink not found at ${ISAACLAB_PATH}/_isaac_sim"
@@ -496,6 +515,55 @@ export RESOURCE_NAME="IsaacSim"
 if [ -f "${ISAACLAB_PATH}/_isaac_sim/setup_conda_env.sh" ]; then
     . "${ISAACLAB_PATH}/_isaac_sim/setup_conda_env.sh"
 fi
+EOF
+
+    # add dynamic runtime fixes for uv environments on non-standard Linux distributions.
+    # These paths include version/hash components, so resolve them during activation.
+    cat >> "${env_path}/bin/activate" <<'EOF'
+
+_isaaclab_prepend_ld_path () {
+    [ -d "$1" ] || return 0
+    case ":${LD_LIBRARY_PATH:-}:" in
+        *":$1:"*) ;;
+        *) LD_LIBRARY_PATH="$1${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ;;
+    esac
+}
+
+_isaaclab_newest_ext_dir () {
+    find "$_isaaclab_extscache" -maxdepth 2 -type d -path "$_isaaclab_extscache/$1" 2>/dev/null | sort -V | tail -n 1
+}
+
+if [ -d "${ISAAC_PATH:-}/extscache" ]; then
+    _isaaclab_extscache="${ISAAC_PATH}/extscache"
+elif [ -d "${ISAACLAB_PATH}/_isaac_sim/extscache" ]; then
+    _isaaclab_extscache="${ISAACLAB_PATH}/_isaac_sim/extscache"
+elif [ -d "${HOME}/isaacsim/extscache" ]; then
+    _isaaclab_extscache="${HOME}/isaacsim/extscache"
+else
+    _isaaclab_extscache=""
+fi
+
+if [ -n "$_isaaclab_extscache" ]; then
+    for _isaaclab_ext_dir in \
+        "$(_isaaclab_newest_ext_dir "omni.usd.schema.audio-*/lib")" \
+        "$(_isaaclab_newest_ext_dir "omni.usd.libs-*/bin")" \
+        "$(_isaaclab_newest_ext_dir "omni.usd.core-*/bin")"
+    do
+        _isaaclab_prepend_ld_path "$_isaaclab_ext_dir"
+    done
+    export LD_LIBRARY_PATH
+fi
+
+_isaaclab_torch_gomp="$(find "${VIRTUAL_ENV}/lib" -path "*/site-packages/torch/lib/libgomp*.so*" -type f 2>/dev/null | sort -V | tail -n 1)"
+if [ -n "$_isaaclab_torch_gomp" ]; then
+    case ":${LD_PRELOAD:-}:" in
+        *":$_isaaclab_torch_gomp:"*) ;;
+        *) export LD_PRELOAD="$_isaaclab_torch_gomp${LD_PRELOAD:+:$LD_PRELOAD}" ;;
+    esac
+fi
+
+unset -f _isaaclab_prepend_ld_path _isaaclab_newest_ext_dir
+unset _isaaclab_extscache _isaaclab_ext_dir _isaaclab_torch_gomp
 EOF
 
     # add information to the user about alias
@@ -650,7 +718,7 @@ while [[ $# -gt 0 ]]; do
                 shift # past argument
             fi
             # setup the uv environment for Isaac Lab
-            setup_uv_env ${uv_env_name}
+            setup_uv_env "${uv_env_name}"
             shift # past argument
             ;;
         -f|--format)
